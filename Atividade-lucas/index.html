@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometric Tower Defense</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="hud">
+            <div class="resources">
+                <div class="lives">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-heart"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                    <span id="lives-counter">20</span>
+                </div>
+                <div class="money">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-dollar-sign"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    <span id="money-counter">500</span>
+                </div>
+                <div class="wave">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-activity"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                    <span id="wave-counter">0/10</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-area">
+            <canvas id="game-canvas"></canvas>
+        </div>
+        
+        <div class="sidebar">
+            <h2>Torres</h2>
+            <div class="tower-selection">
+                <div class="tower" data-tower="arqueiro">
+                    <div class="tower-icon tower-arqueiro"></div>
+                    <div class="tower-info">
+                        <h3>Arqueiro</h3>
+                        <p>Custo: 100</p>
+                    </div>
+                </div>
+                <div class="tower" data-tower="canhao">
+                    <div class="tower-icon tower-canhao"></div>
+                    <div class="tower-info">
+                        <h3>Canhão</h3>
+                        <p>Custo: 200</p>
+                    </div>
+                </div>
+                <div class="tower" data-tower="sniper">
+                    <div class="tower-icon tower-sniper"></div>
+                    <div class="tower-info">
+                        <h3>Sniper</h3>
+                        <p>Custo: 250</p>
+                    </div>
+                </div>
+                <div class="tower" data-tower="gelo">
+                    <div class="tower-icon tower-gelo"></div>
+                    <div class="tower-info">
+                        <h3>Gelo</h3>
+                        <p>Custo: 150</p>
+                    </div>
+                </div>
+                <div class="tower" data-tower="veneno">
+                    <div class="tower-icon tower-veneno"></div>
+                    <div class="tower-info">
+                        <h3>Veneno</h3>
+                        <p>Custo: 180</p>
+                    </div>
+                </div>
+                <div class="tower" data-tower="balista">
+                    <div class="tower-icon tower-balista"></div>
+                    <div class="tower-info">
+                        <h3>Balista</h3>
+                        <p>Custo: 300</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-panel" id="tower-info-panel">
+                <h3>Informações</h3>
+                <p>Selecione uma torre para ver detalhes</p>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="start-wave-btn">Iniciar Wave</button>
+            <button id="reset-game-btn">Reiniciar Jogo</button>
+            <button id="catalog-btn">Catálogo</button>
+        </div>
+    </div>
+    
+    <div class="modal" id="catalog-modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Catálogo</h2>
+            
+            <div class="catalog-tabs">
+                <button class="tab-btn active" data-tab="towers">Torres</button>
+                <button class="tab-btn" data-tab="enemies">Inimigos</button>
+            </div>
+            
+            <div class="catalog-content">
+                <div class="tab-content active" id="towers-catalog">
+                    <h3>Torres</h3>
+                    <div class="catalog-grid">
+                        <!-- Catálogo de torres será preenchido pelo JavaScript -->
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="enemies-catalog">
+                    <h3>Inimigos</h3>
+                    <div class="catalog-section">
+                        <h4>Básicos</h4>
+                        <div class="catalog-grid">
+                            <!-- Catálogo de inimigos básicos será preenchido pelo JavaScript -->
+                        </div>
+                    </div>
+                    <div class="catalog-section">
+                        <h4>Avançados</h4>
+                        <div class="catalog-grid">
+                            <!-- Catálogo de inimigos avançados será preenchido pelo JavaScript -->
+                        </div>
+                    </div>
+                    <div class="catalog-section">
+                        <h4>Elite</h4>
+                        <div class="catalog-grid">
+                            <!-- Catálogo de inimigos elite será preenchido pelo JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="scripts/map.js"></script>
+    <script src="scripts/towers.js"></script>
+    <script src="scripts/enemies.js"></script>
+    <script src="scripts/game.js"></script>
+    <script src="scripts/ui.js"></script>
+    
+</body>
+</html>
