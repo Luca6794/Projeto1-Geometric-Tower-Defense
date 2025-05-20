@@ -1,0 +1,414 @@
+/* Geometric Tower Defense - Estilos Principais */
+
+/* Resetando estilos */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #111;
+    color: #eee;
+    overflow: hidden;
+}
+
+.game-container {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+        "hud hud"
+        "game sidebar"
+        "controls controls";
+    width: 100vw;
+    height: 100vh;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* HUD - Cabeçalho */
+.hud {
+    grid-area: hud;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #222;
+    border-bottom: 2px solid #444;
+}
+
+.resources {
+    display: flex;
+    gap: 20px;
+}
+
+.lives, .money, .wave {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.lives svg {
+    color: #f54242;
+}
+
+.money svg {
+    color: #f5d742;
+}
+
+.wave svg {
+    color: #42adf5;
+}
+
+/* Área do jogo */
+.game-area {
+    grid-area: game;
+    position: relative;
+    background-color: #181818;
+    overflow: hidden;
+}
+
+#game-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+/* Barra lateral */
+.sidebar {
+    grid-area: sidebar;
+    background-color: #222;
+    border-left: 2px solid #444;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.sidebar h2 {
+    margin-bottom: 15px;
+    color: #f5d742;
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+}
+
+.tower-selection {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.tower {
+    background-color: #333;
+    border: 2px solid #555;
+    border-radius: 5px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tower:hover {
+    background-color: #444;
+    border-color: #777;
+}
+
+.tower.selected {
+    background-color: #2a4a80;
+    border-color: #4a7ac5;
+}
+
+.tower-icon {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 10px;
+    border-radius: 5px;
+}
+
+/* Ícones das torres (formas geométricas coloridas) */
+.tower-arqueiro {
+    background-color: #5cb85c;
+    position: relative;
+}
+
+.tower-arqueiro::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 18px;
+    width: 4px;
+    height: 24px;
+    background-color: #2b542c;
+}
+
+.tower-canhao {
+    background-color: #d9534f;
+    position: relative;
+}
+
+.tower-canhao::before {
+    content: "";
+    position: absolute;
+    top: 15px;
+    left: 10px;
+    width: 20px;
+    height: 10px;
+    background-color: #761c19;
+}
+
+.tower-sniper {
+    background-color: #337ab7;
+    position: relative;
+}
+
+.tower-sniper::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 18px;
+    width: 4px;
+    height: 30px;
+    background-color: #1b4770;
+}
+
+.tower-gelo {
+    background-color: #5bc0de;
+    position: relative;
+}
+
+.tower-gelo::before {
+    content: "";
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: white;
+    opacity: 0.6;
+}
+
+.tower-veneno {
+    background-color: #9c27b0;
+    position: relative;
+}
+
+.tower-veneno::before {
+    content: "";
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 20px;
+    height: 20px;
+    background-color: #6a0080;
+    transform: rotate(45deg);
+}
+
+.tower-balista {
+    background-color: #ff9800;
+    position: relative;
+}
+
+.tower-balista::before {
+    content: "";
+    position: absolute;
+    top: 10px;
+    left: 5px;
+    width: 30px;
+    height: 4px;
+    background-color: #b26a00;
+}
+
+.tower-balista::after {
+    content: "";
+    position: absolute;
+    top: 18px;
+    left: 5px;
+    width: 30px;
+    height: 4px;
+    background-color: #b26a00;
+}
+
+.tower-info {
+    text-align: center;
+}
+
+.tower-info h3 {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.tower-info p {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.info-panel {
+    background-color: #333;
+    border-radius: 5px;
+    padding: 15px;
+    margin-top: 20px;
+}
+
+.info-panel h3 {
+    color: #f5d742;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+/* Controles inferiores */
+.controls {
+    grid-area: controls;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 15px;
+    background-color: #222;
+    border-top: 2px solid #444;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #337ab7;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+button:hover {
+    background-color: #23527c;
+}
+
+#start-wave-btn {
+    background-color: #5cb85c;
+}
+
+#start-wave-btn:hover {
+    background-color: #449d44;
+}
+
+#reset-game-btn {
+    background-color: #d9534f;
+}
+
+#reset-game-btn:hover {
+    background-color: #c9302c;
+}
+
+#catalog-btn {
+    background-color: #f0ad4e;
+}
+
+#catalog-btn:hover {
+    background-color: #ec971f;
+}
+
+/* Modal de catálogo */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.modal-content {
+    background-color: #333;
+    margin: 5% auto;
+    padding: 20px;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 900px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.close-btn {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-btn:hover {
+    color: white;
+}
+
+.catalog-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
+}
+
+.tab-btn {
+    background-color: #555;
+    padding: 8px 15px;
+}
+
+.tab-btn.active {
+    background-color: #337ab7;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.catalog-section {
+    margin-bottom: 30px;
+}
+
+.catalog-section h4 {
+    margin-bottom: 10px;
+    color: #5bc0de;
+    border-bottom: 1px solid #555;
+    padding-bottom: 5px;
+}
+
+.catalog-item {
+    background-color: #444;
+    border-radius: 5px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.catalog-icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 10px;
+}
+
+.catalog-item h4 {
+    font-size: 16px;
+    margin-bottom: 5px;
+    color: white;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.catalog-item p {
+    font-size: 12px;
+    color: #aaa;
+    text-align: center;
+}
