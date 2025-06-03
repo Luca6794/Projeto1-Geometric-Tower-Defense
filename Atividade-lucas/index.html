@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="game-container">
-        <div class="hud">A
+        <div class="hud">
             <div class="resources">
                 <div class="lives">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-heart"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
@@ -20,7 +20,7 @@
                 </div>
                 <div class="wave">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-activity"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                    <span id="wave-counter">0/10</span>
+                    <span id="wave-counter">0/30</span>
                 </div>
             </div>
         </div>
@@ -32,53 +32,54 @@
         <div class="sidebar">
             <h2>Torres</h2>
             <div class="tower-selection">
+                <!-- Torres organizadas por preço crescente -->
                 <div class="tower" data-tower="arqueiro">
                     <div class="tower-icon tower-arqueiro"></div>
                     <div class="tower-info">
                         <h3>Arqueiro</h3>
-                        <p>Custo: 80</p>
-                    </div>
-                </div>
-                <div class="tower" data-tower="canhao">
-                    <div class="tower-icon tower-canhao"></div>
-                    <div class="tower-info">
-                        <h3>Canhão</h3>
-                        <p>Custo: 250</p>
-                    </div>
-                </div>
-                <div class="tower" data-tower="sniper">
-                    <div class="tower-icon tower-sniper"></div>
-                    <div class="tower-info">
-                        <h3>Sniper</h3>
-                        <p>Custo: 300</p>
+                        <p>Custo: $80</p>
                     </div>
                 </div>
                 <div class="tower" data-tower="gelo">
                     <div class="tower-icon tower-gelo"></div>
                     <div class="tower-info">
                         <h3>Gelo</h3>
-                        <p>Custo: 120</p>
+                        <p>Custo: $120</p>
                     </div>
                 </div>
                 <div class="tower" data-tower="veneno">
                     <div class="tower-icon tower-veneno"></div>
                     <div class="tower-info">
                         <h3>Veneno</h3>
-                        <p>Custo: 150</p>
-                    </div>
-                </div>
-                <div class="tower" data-tower="balista">
-                    <div class="tower-icon tower-balista"></div>
-                    <div class="tower-info">
-                        <h3>Balista</h3>
-                        <p>Custo: 600</p>
+                        <p>Custo: $150</p>
                     </div>
                 </div>
                 <div class="tower" data-tower="gladiador">
                     <div class="tower-icon tower-gladiador"></div>
                     <div class="tower-info">
                         <h3>Gladiador</h3>
-                        <p>Custo: 200</p>
+                        <p>Custo: $200</p>
+                    </div>
+                </div>
+                <div class="tower" data-tower="canhao">
+                    <div class="tower-icon tower-canhao"></div>
+                    <div class="tower-info">
+                        <h3>Canhão</h3>
+                        <p>Custo: $250</p>
+                    </div>
+                </div>
+                <div class="tower" data-tower="sniper">
+                    <div class="tower-icon tower-sniper"></div>
+                    <div class="tower-info">
+                        <h3>Sniper</h3>
+                        <p>Custo: $300</p>
+                    </div>
+                </div>
+                <div class="tower" data-tower="balista">
+                    <div class="tower-icon tower-balista"></div>
+                    <div class="tower-info">
+                        <h3>Balista</h3>
+                        <p>Custo: $600</p>
                     </div>
                 </div>
             </div>
