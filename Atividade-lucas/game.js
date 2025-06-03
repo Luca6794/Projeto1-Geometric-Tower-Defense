@@ -4,46 +4,40 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.map = new GameMap();
         
-        this.money = 500;
-        this.lives = 20;
-        this.wave = 1;
-        this.enemies = [];
-        this.gameLoop = null;
-        this.lastTime = 0;
-        this.waveActive = false;
+        // Estado do jogo
+        this.gameRunning = false;
         this.gameOver = false;
+        this.waveActive = false;
+        this.currentWave = 0;
+        this.maxWaves = 20;
+        
+        // Recursos
+        this.lives = 20;
+        this.money = 200; // Reduzido drasticamente de 500
+        
+        // Arrays de entidades
+        this.towers = [];
+        this.enemies = [];
+        this.waveEnemies = [];
+        this.spawnTimer = 0;
+        this.spawnDelay = 1500; // ms entre spawns
+        
+        // Interface
         this.selectedTower = null;
         this.placingTower = false;
         this.selectedTowerType = null;
         this.mouseX = 0;
         this.mouseY = 0;
         
-        this.waveData = [
-            { enemies: [FastEnemy, BalancedEnemy], count: 8, interval: 1000 },
-            { enemies: [FastEnemy, StrongEnemy], count: 10, interval: 900 },
-            { enemies: [BalancedEnemy, GliderEnemy], count: 12, interval: 800 },
-            { enemies: [StrongEnemy, SpeedsterEnemy], count: 14, interval: 750 },
-            { enemies: [ResistantEnemy, FlyingEnemy], count: 16, interval: 700 },
-            { enemies: [SpeedsterEnemy, SuperBalancedEnemy], count: 18, interval: 650 },
-            { enemies: [ResistantEnemy, RegeneratingEnemy], count: 20, interval: 600 },
-            { enemies: [FlyingEnemy, LightningEnemy], count: 22, interval: 550 },
-            { enemies: [ToughEnemy, GargoyleEnemy], count: 24, interval: 500 },
-            { enemies: [GolemBoss], count: 1, interval: 0, boss: true },
-            { enemies: [SplitterEnemy, SemiImmortalEnemy], count: 26, interval: 450 },
-            { enemies: [LightningEnemy, ToughEnemy], count: 28, interval: 400 },
-            { enemies: [GargoyleEnemy, SplitterEnemy], count: 30, interval: 350 },
-            { enemies: [SemiImmortalEnemy, RegeneratingEnemy], count: 32, interval: 300 },
-            { enemies: [LichBoss], count: 1, interval: 0, boss: true },
-            { enemies: [FastEnemy, StrongEnemy, BalancedEnemy], count: 35, interval: 250 },
-            { enemies: [SpeedsterEnemy, ResistantEnemy, FlyingEnemy], count: 38, interval: 200 },
-            { enemies: [LightningEnemy, ToughEnemy, GargoyleEnemy], count: 40, interval: 150 },
-            { enemies: [SplitterEnemy, SemiImmortalEnemy, RegeneratingEnemy], count: 42, interval: 100 },
-            { enemies: [GolemBoss, LichBoss, DragonBoss], count: 3, interval: 5000, boss: true }
-        ];
+        // Timing
+        this.lastTime = 0;
+        this.animationId = null;
         
         this.initializeCanvas();
         this.initializeGame();
-        this.startGameLoop();
+        
+        // Torna disponível globalmente
+        window.gameInstance = this;
     }
 
     initializeCanvas() {
@@ -59,149 +53,268 @@ class Game {
     }
 
     initializeGame() {
-        this.updateUI();
+        this.gameRunning = true;
+        this.gameLoop();
     }
 
-    startGameLoop() {
-        const gameLoop = (currentTime) => {
-            const deltaTime = currentTime - this.lastTime;
-            this.lastTime = currentTime;
-            
-            this.update(deltaTime);
-            this.render();
-            
-            this.gameLoop = requestAnimationFrame(gameLoop);
-        };
+    gameLoop(currentTime = 0) {
+        if (!this.gameRunning) return;
         
-        this.gameLoop = requestAnimationFrame(gameLoop);
+        const deltaTime = currentTime - this.lastTime;
+        this.lastTime = currentTime;
+        
+        this.update(deltaTime);
+        this.render();
+        
+        this.animationId = requestAnimationFrame((time) => this.gameLoop(time));
     }
 
     update(deltaTime) {
         if (this.gameOver) return;
         
+        // Atualiza spawn de inimigos
+        this.updateEnemySpawning(deltaTime);
+        
+        // Atualiza torres
+        for (const tower of this.towers) {
+            tower.update(deltaTime, this.enemies);
+        }
+        
+        // Atualiza inimigos
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
             enemy.update(deltaTime);
             
-            if (enemy.health <= 0) {
+            // Remove inimigos mortos
+            if (enemy.isDead()) {
                 this.money += enemy.reward;
                 this.enemies.splice(i, 1);
                 this.updateUI();
-            } else if (enemy.progress >= 1) {
+                continue;
+            }
+            
+            // Remove inimigos que chegaram ao fim
+            if (enemy.hasReachedEnd()) {
                 this.lives--;
                 this.enemies.splice(i, 1);
                 this.updateUI();
                 
                 if (this.lives <= 0) {
-                    this.endGame();
+                    this.gameOver = true;
+                    this.showGameOverMessage();
                 }
             }
         }
         
-        for (const tower of this.map.placedTowers) {
-            tower.update(deltaTime, this.enemies);
+        // Verifica fim de wave
+        if (this.waveActive && this.enemies.length === 0 && this.waveEnemies.length === 0) {
+            this.waveActive = false;
+            
+            if (this.currentWave >= this.maxWaves) {
+                this.showVictoryMessage();
+            }
         }
     }
 
-    render() {
-        this.map.draw(this.ctx);
+    updateEnemySpawning(deltaTime) {
+        if (!this.waveActive || this.waveEnemies.length === 0) return;
         
-        for (const tower of this.map.placedTowers) {
-            tower.draw(this.ctx);
-        }
+        this.spawnTimer -= deltaTime;
         
-        for (const enemy of this.enemies) {
-            enemy.draw(this.ctx);
-        }
-        
-        if (this.placingTower && this.selectedTowerType) {
-            this.drawTowerPreview();
+        if (this.spawnTimer <= 0) {
+            const enemyType = this.waveEnemies.shift();
+            const enemy = this.createEnemy(enemyType);
+            this.enemies.push(enemy);
+            
+            this.spawnTimer = this.spawnDelay;
         }
     }
 
-    drawTowerPreview() {
-        const gridPos = this.map.mouseToGrid(this.mouseX, this.mouseY);
-        const pixelPos = this.map.gridToPixels(gridPos.x, gridPos.y);
-        const canPlace = this.map.canPlaceTower(gridPos.x, gridPos.y);
+    createEnemy(type) {
+        switch (type) {
+            case 'basic': return new Enemy(this.map);
+            case 'fast': return new FastEnemy(this.map);
+            case 'strong': return new StrongEnemy(this.map);
+            case 'balanced': return new BalancedEnemy(this.map);
+            case 'glider': return new GliderEnemy(this.map);
+            case 'speedster': return new SpeedsterEnemy(this.map);
+            case 'resistant': return new ResistantEnemy(this.map);
+            case 'flying': return new FlyingEnemy(this.map);
+            case 'superbalanced': return new SuperBalancedEnemy(this.map);
+            case 'regenerating': return new RegeneratingEnemy(this.map);
+            case 'lightning': return new LightningEnemy(this.map);
+            case 'tough': return new ToughEnemy(this.map);
+            case 'gargoyle': return new GargoyleEnemy(this.map);
+            case 'splitter': return new SplitterEnemy(this.map);
+            case 'semiimmortal': return new SemiImmortalEnemy(this.map);
+            case 'berserker': return new BerserkerEnemy(this.map);
+            case 'phantom': return new PhantomEnemy(this.map);
+            case 'nightmare': return new NightmareEnemy(this.map);
+            case 'golem': return new GolemBoss(this.map);
+            case 'lich': return new LichBoss(this.map);
+            case 'dragon': return new DragonBoss(this.map);
+            default: return new Enemy(this.map);
+        }
+    }
+
+    generateWaveEnemies(waveNumber) {
+        const enemies = [];
+        const baseEnemyCount = 8 + Math.floor(waveNumber * 3); // Progressão muito mais agressiva
         
-        this.ctx.globalAlpha = 0.7;
-        this.ctx.fillStyle = canPlace ? '#00ff00' : '#ff0000';
-        this.ctx.fillRect(
-            pixelPos.x - this.map.gridSize * 0.4,
-            pixelPos.y - this.map.gridSize * 0.4,
-            this.map.gridSize * 0.8,
-            this.map.gridSize * 0.8
-        );
-        this.ctx.globalAlpha = 1.0;
+        // Waves 1-5: Inimigos básicos com crescimento rápido
+        if (waveNumber <= 5) {
+            const types = ['basic', 'fast', 'strong', 'balanced'];
+            for (let i = 0; i < baseEnemyCount; i++) {
+                enemies.push(types[Math.floor(Math.random() * types.length)]);
+            }
+            
+            // Voadores desde wave 2
+            if (waveNumber >= 2) {
+                for (let i = 0; i < Math.floor(waveNumber); i++) {
+                    enemies.push('glider');
+                }
+            }
+        }
+        // Waves 6-9: Avançados dominam
+        else if (waveNumber <= 9) {
+            const advancedTypes = ['speedster', 'resistant', 'flying', 'superbalanced', 'regenerating'];
+            const basicTypes = ['fast', 'strong', 'balanced'];
+            
+            // 80% avançados
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.8); i++) {
+                enemies.push(advancedTypes[Math.floor(Math.random() * advancedTypes.length)]);
+            }
+            
+            // 20% básicos
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.2); i++) {
+                enemies.push(basicTypes[Math.floor(Math.random() * basicTypes.length)]);
+            }
+        }
+        // Wave 10: Boss Golem + elite + avançados
+        else if (waveNumber === 10) {
+            const eliteTypes = ['lightning', 'tough', 'gargoyle', 'splitter'];
+            const advancedTypes = ['speedster', 'resistant', 'flying', 'regenerating'];
+            
+            // Boss principal
+            enemies.push('golem');
+            
+            // Elite support
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.6); i++) {
+                enemies.push(eliteTypes[Math.floor(Math.random() * eliteTypes.length)]);
+            }
+            
+            // Avançados support
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.4); i++) {
+                enemies.push(advancedTypes[Math.floor(Math.random() * advancedTypes.length)]);
+            }
+        }
+        // Waves 11-14: Elite dominam
+        else if (waveNumber <= 14) {
+            const eliteTypes = ['lightning', 'tough', 'gargoyle', 'splitter', 'semiimmortal', 'berserker', 'phantom'];
+            const advancedTypes = ['speedster', 'resistant', 'flying', 'regenerating'];
+            
+            // 85% elite
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.85); i++) {
+                enemies.push(eliteTypes[Math.floor(Math.random() * eliteTypes.length)]);
+            }
+            
+            // 15% avançados
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.15); i++) {
+                enemies.push(advancedTypes[Math.floor(Math.random() * advancedTypes.length)]);
+            }
+        }
+        // Wave 15: Boss Lich + nightmare + elite
+        else if (waveNumber === 15) {
+            const eliteTypes = ['lightning', 'tough', 'gargoyle', 'splitter', 'semiimmortal', 'berserker', 'phantom', 'nightmare'];
+            const advancedTypes = ['speedster', 'resistant', 'flying', 'regenerating'];
+            
+            // Boss principal
+            enemies.push('lich');
+            
+            // Nightmare mode enemies
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.4); i++) {
+                enemies.push('nightmare');
+            }
+            
+            // Elite support
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.4); i++) {
+                enemies.push(eliteTypes[Math.floor(Math.random() * eliteTypes.length)]);
+            }
+            
+            // Avançados support
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.2); i++) {
+                enemies.push(advancedTypes[Math.floor(Math.random() * advancedTypes.length)]);
+            }
+        }
+        // Waves 16-19: Pesadelo total
+        else if (waveNumber <= 19) {
+            const nightmareTypes = ['nightmare', 'berserker', 'phantom', 'semiimmortal'];
+            const eliteTypes = ['lightning', 'tough', 'gargoyle', 'splitter'];
+            
+            // 70% nightmare tier
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.7); i++) {
+                enemies.push(nightmareTypes[Math.floor(Math.random() * nightmareTypes.length)]);
+            }
+            
+            // 30% elite
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.3); i++) {
+                enemies.push(eliteTypes[Math.floor(Math.random() * eliteTypes.length)]);
+            }
+            
+            // Extra mini-bosses
+            if (waveNumber >= 17) {
+                enemies.push('golem');
+            }
+            if (waveNumber >= 18) {
+                enemies.push('lich');
+            }
+        }
+        // Wave 20: APOCALIPSE FINAL - Todos os 3 bosses + nightmare army
+        else if (waveNumber === 20) {
+            // Os 3 bosses principais
+            enemies.push('golem', 'lich', 'dragon');
+            
+            // Exército de pesadelo
+            const nightmareArmy = ['nightmare', 'berserker', 'phantom', 'semiimmortal'];
+            for (let i = 0; i < baseEnemyCount; i++) {
+                enemies.push(nightmareArmy[Math.floor(Math.random() * nightmareArmy.length)]);
+            }
+            
+            // Elite support adicional
+            const eliteSupport = ['lightning', 'tough', 'gargoyle', 'splitter'];
+            for (let i = 0; i < Math.floor(baseEnemyCount * 0.5); i++) {
+                enemies.push(eliteSupport[Math.floor(Math.random() * eliteSupport.length)]);
+            }
+        }
+        
+        return enemies;
     }
 
     startWave() {
         if (this.waveActive || this.gameOver) return;
         
+        this.currentWave++;
+        this.waveEnemies = this.generateWaveEnemies(this.currentWave);
         this.waveActive = true;
-        const waveConfig = this.waveData[Math.min(this.wave - 1, this.waveData.length - 1)];
-        
-        if (waveConfig.boss) {
-            // Spawn bosses imediatamente
-            waveConfig.enemies.forEach((EnemyClass, index) => {
-                setTimeout(() => {
-                    this.enemies.push(new EnemyClass(this.map));
-                }, index * (waveConfig.interval || 3000));
-            });
-            this.checkWaveComplete();
-        } else {
-            // Spawn normal de inimigos
-            let enemiesSpawned = 0;
-            const spawnInterval = setInterval(() => {
-                if (enemiesSpawned >= waveConfig.count) {
-                    clearInterval(spawnInterval);
-                    this.checkWaveComplete();
-                    return;
-                }
-                
-                const EnemyClass = waveConfig.enemies[Math.floor(Math.random() * waveConfig.enemies.length)];
-                this.enemies.push(new EnemyClass(this.map));
-                enemiesSpawned++;
-            }, waveConfig.interval);
-        }
+        this.spawnTimer = 0;
         
         this.updateUI();
     }
 
-    checkWaveComplete() {
-        const checkComplete = () => {
-            if (this.enemies.length === 0 && this.waveActive) {
-                this.waveActive = false;
-                this.wave++;
-                this.money += 50;
-                this.updateUI();
-                
-                if (this.wave > 20) {
-                    this.winGame();
-                }
-            } else if (this.waveActive) {
-                setTimeout(checkComplete, 1000);
-            }
-        };
-        
-        setTimeout(checkComplete, 2000);
-    }
-
     placeTower(gridX, gridY) {
-        if (!this.selectedTowerType || !this.map.canPlaceTower(gridX, gridY)) {
-            return false;
-        }
+        if (!this.placingTower || !this.selectedTowerType) return false;
+        
+        if (!this.map.canPlaceTower(gridX, gridY)) return false;
         
         const towerCost = this.getTowerCost(this.selectedTowerType);
-        if (this.money < towerCost) {
-            return false;
-        }
+        if (this.money < towerCost) return false;
         
-        const TowerClass = this.getTowerClass(this.selectedTowerType);
-        const tower = new TowerClass(gridX, gridY, this.map);
-        
-        if (this.map.addTower(tower)) {
+        const tower = this.createTower(this.selectedTowerType, gridX, gridY);
+        if (tower && this.map.addTower(tower)) {
+            this.towers.push(tower);
             this.money -= towerCost;
+            this.placingTower = false;
+            this.selectedTowerType = null;
             this.updateUI();
             return true;
         }
@@ -209,8 +322,47 @@ class Game {
         return false;
     }
 
+    createTower(type, gridX, gridY) {
+        switch (type) {
+            case 'arqueiro': return new ArcherTower(gridX, gridY, this.map);
+            case 'gelo': return new IceTower(gridX, gridY, this.map);
+            case 'veneno': return new PoisonTower(gridX, gridY, this.map);
+            case 'gladiador': return new GladiatorTower(gridX, gridY, this.map);
+            case 'canhao': return new CannonTower(gridX, gridY, this.map);
+            case 'sniper': return new SniperTower(gridX, gridY, this.map);
+            case 'balista': return new BallistaTower(gridX, gridY, this.map);
+            default: return null;
+        }
+    }
+
+    getTowerCost(type) {
+        const costs = {
+            'arqueiro': 80,
+            'gelo': 120,
+            'veneno': 150,
+            'gladiador': 200,
+            'canhao': 250,
+            'sniper': 300,
+            'balista': 600
+        };
+        return costs[type] || 0;
+    }
+
+    getTowerTypeFromInstance(tower) {
+        if (tower instanceof ArcherTower) return 'arqueiro';
+        if (tower instanceof IceTower) return 'gelo';
+        if (tower instanceof PoisonTower) return 'veneno';
+        if (tower instanceof GladiatorTower) return 'gladiador';
+        if (tower instanceof CannonTower) return 'canhao';
+        if (tower instanceof SniperTower) return 'sniper';
+        if (tower instanceof BallistaTower) return 'balista';
+        return 'torre';
+    }
+
     selectTower(gridX, gridY) {
-        for (const tower of this.map.placedTowers) {
+        this.selectedTower = null;
+        
+        for (const tower of this.towers) {
             if (tower.gridX === gridX && tower.gridY === gridY) {
                 this.selectedTower = tower;
                 tower.showRange();
@@ -218,16 +370,16 @@ class Game {
             }
         }
         
-        this.selectedTower = null;
         return null;
     }
 
     upgradeTower() {
         if (!this.selectedTower) return false;
         
-        if (this.money >= this.selectedTower.upgradeCost) {
+        if (this.money < this.selectedTower.upgradeCost) return false;
+        
+        if (this.selectedTower.upgrade()) {
             this.money -= this.selectedTower.upgradeCost;
-            this.selectedTower.upgrade();
             this.updateUI();
             return true;
         }
@@ -238,53 +390,21 @@ class Game {
     sellTower() {
         if (!this.selectedTower) return false;
         
-        const sellValue = Math.floor(this.selectedTower.cost * 0.7);
-        this.money += sellValue;
+        const sellPrice = Math.floor(this.selectedTower.cost * 0.7);
+        this.money += sellPrice;
         
+        // Remove da lista de torres
+        const towerIndex = this.towers.indexOf(this.selectedTower);
+        if (towerIndex !== -1) {
+            this.towers.splice(towerIndex, 1);
+        }
+        
+        // Remove do mapa
         this.map.removeTower(this.selectedTower.gridX, this.selectedTower.gridY);
+        
         this.selectedTower = null;
         this.updateUI();
-        
         return true;
-    }
-
-    getTowerClass(towerType) {
-        const towerClasses = {
-            'arqueiro': ArcherTower,
-            'canhao': CannonTower,
-            'sniper': SniperTower,
-            'gelo': IceTower,
-            'veneno': PoisonTower,
-            'balista': BallistaTower,
-            'gladiador': GladiatorTower
-        };
-        
-        return towerClasses[towerType] || ArcherTower;
-    }
-
-    getTowerCost(towerType) {
-        const costs = {
-            'arqueiro': 80,
-            'canhao': 250,
-            'sniper': 300,
-            'gelo': 120,
-            'veneno': 150,
-            'balista': 600,
-            'gladiador': 200
-        };
-        
-        return costs[towerType] || 100;
-    }
-
-    getTowerTypeFromInstance(towerInstance) {
-        if (towerInstance instanceof ArcherTower) return 'arqueiro';
-        if (towerInstance instanceof CannonTower) return 'canhao';
-        if (towerInstance instanceof SniperTower) return 'sniper';
-        if (towerInstance instanceof IceTower) return 'gelo';
-        if (towerInstance instanceof PoisonTower) return 'veneno';
-        if (towerInstance instanceof BallistaTower) return 'balista';
-        if (towerInstance instanceof GladiatorTower) return 'gladiador';
-        return 'arqueiro';
     }
 
     updateMousePosition(x, y) {
@@ -292,41 +412,146 @@ class Game {
         this.mouseY = y;
     }
 
+    render() {
+        // Limpa o canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Desenha o mapa
+        this.map.draw(this.ctx);
+        
+        // Desenha torres
+        for (const tower of this.towers) {
+            tower.draw(this.ctx);
+        }
+        
+        // Desenha inimigos
+        for (const enemy of this.enemies) {
+            enemy.draw(this.ctx);
+        }
+        
+        // Desenha prévia da torre se estiver colocando
+        if (this.placingTower && this.selectedTowerType) {
+            this.drawTowerPreview();
+        }
+    }
+
+    drawTowerPreview() {
+        const gridPos = this.map.mouseToGrid(this.mouseX, this.mouseY);
+        const pixelPos = this.map.gridToPixels(gridPos.x, gridPos.y);
+        
+        const canPlace = this.map.canPlaceTower(gridPos.x, gridPos.y);
+        const towerCost = this.getTowerCost(this.selectedTowerType);
+        const canAfford = this.money >= towerCost;
+        
+        // Cor da prévia
+        this.ctx.fillStyle = canPlace && canAfford ? 
+            'rgba(76, 175, 80, 0.5)' : 'rgba(244, 67, 54, 0.5)';
+        
+        const size = this.map.gridSize * 0.8;
+        this.ctx.fillRect(
+            pixelPos.x - size / 2,
+            pixelPos.y - size / 2,
+            size,
+            size
+        );
+        
+        // Alcance da torre
+        if (canPlace && canAfford) {
+            const tower = this.createTower(this.selectedTowerType, 0, 0);
+            if (tower) {
+                this.ctx.beginPath();
+                this.ctx.arc(pixelPos.x, pixelPos.y, tower.range, 0, Math.PI * 2);
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                this.ctx.fill();
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                this.ctx.stroke();
+            }
+        }
+    }
+
     updateUI() {
-        document.getElementById('lives-counter').textContent = this.lives;
-        document.getElementById('money-counter').textContent = this.money;
-        document.getElementById('wave-counter').textContent = `${this.wave}/20`;
+        const livesCounter = document.getElementById('lives-counter');
+        const moneyCounter = document.getElementById('money-counter');
+        const waveCounter = document.getElementById('wave-counter');
+        
+        if (livesCounter) livesCounter.textContent = this.lives;
+        if (moneyCounter) moneyCounter.textContent = this.money;
+        if (waveCounter) waveCounter.textContent = `${this.currentWave}/${this.maxWaves}`;
+        
+        // Atualiza disponibilidade dos botões de torre
+        const towerElements = document.querySelectorAll('.tower');
+        towerElements.forEach(element => {
+            const towerType = element.getAttribute('data-tower');
+            const cost = this.getTowerCost(towerType);
+            
+            if (this.money >= cost) {
+                element.classList.remove('disabled');
+            } else {
+                element.classList.add('disabled');
+            }
+        });
+        
+        // Atualiza botão de wave
+        const startWaveBtn = document.getElementById('start-wave-btn');
+        if (startWaveBtn) {
+            startWaveBtn.disabled = this.waveActive || this.gameOver;
+            startWaveBtn.textContent = this.waveActive ? 
+                'Wave em Andamento' : 
+                this.currentWave >= this.maxWaves ? 'Jogo Completo' : 'Iniciar Wave';
+        }
     }
 
     resetGame() {
-        this.money = 500;
-        this.lives = 20;
-        this.wave = 1;
-        this.enemies = [];
-        this.waveActive = false;
+        this.gameRunning = false;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+        
+        // Reset do estado
         this.gameOver = false;
+        this.waveActive = false;
+        this.currentWave = 0;
+        this.lives = 20;
+        this.money = 500;
+        
+        // Limpa arrays
+        this.towers = [];
+        this.enemies = [];
+        this.waveEnemies = [];
+        this.map.placedTowers = [];
+        
+        // Reset da interface
         this.selectedTower = null;
         this.placingTower = false;
         this.selectedTowerType = null;
-        this.map.placedTowers = [];
+        
+        // Limpa painel de informações
+        const infoPanel = document.getElementById('tower-info-panel');
+        if (infoPanel) {
+            infoPanel.innerHTML = '<h3>Informações</h3><p>Selecione uma torre para ver detalhes</p>';
+        }
+        
         this.updateUI();
+        this.initializeGame();
     }
 
-    endGame() {
-        this.gameOver = true;
-        alert('Game Over! Você perdeu todas as vidas.');
+    showGameOverMessage() {
+        setTimeout(() => {
+            alert('Game Over! Suas defesas foram superadas.\n\nWave alcançada: ' + this.currentWave);
+        }, 100);
     }
 
-    winGame() {
-        this.gameOver = true;
-        alert('Parabéns! Você completou todas as ondas!');
+    showVictoryMessage() {
+        setTimeout(() => {
+            alert('Parabéns! Você defendeu com sucesso contra todas as 30 waves!\n\nVocê é um verdadeiro mestre da defesa!');
+            this.gameOver = true;
+        }, 100);
     }
 }
 
-window.Game = Game;
-window.gameInstance = null;
-
+// Inicialização quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', () => {
     window.gameInstance = new Game();
-    window.game = window.gameInstance;
 });
+
+window.Game = Game;
