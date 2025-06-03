@@ -16,9 +16,9 @@ class Tower {
         this.attackCooldown = 1000 / this.attackSpeed;
         this.level = 1;
         this.upgradeCount = 0;
-        this.maxUpgrades = 6;
+        this.maxUpgrades = 5; // Limitado a 5 níveis máximo
         this.cost = 100;
-        this.upgradeCost = this.cost / 2;
+        this.upgradeCost = this.cost; // Custo de upgrade aumentado
         this.color = '#5cb85c';
         this.target = null;
         this.projectiles = [];
@@ -30,6 +30,7 @@ class Tower {
     }
 
     update(deltaTime, enemies) {
+        // Atualiza projéteis
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const projectile = this.projectiles[i];
             projectile.update(deltaTime);
@@ -39,6 +40,7 @@ class Tower {
             }
         }
         
+        // Sistema de ataque
         const now = Date.now();
         if (now - this.lastAttackTime >= this.attackCooldown) {
             this.findTarget(enemies);
@@ -51,7 +53,7 @@ class Tower {
 
     findTarget(enemies) {
         this.target = null;
-        let highestPathIndex = -1;
+        let highestProgress = -1;
         
         for (const enemy of enemies) {
             if (enemy.health <= 0) continue;
@@ -59,9 +61,10 @@ class Tower {
             const distance = Math.hypot(enemy.x - this.x, enemy.y - this.y);
             
             if (distance <= this.range) {
-                if (enemy.pathIndex > highestPathIndex) {
+                // Prioriza inimigos mais próximos da saída
+                if (enemy.pathIndex > highestProgress) {
                     this.target = enemy;
-                    highestPathIndex = enemy.pathIndex;
+                    highestProgress = enemy.pathIndex;
                 }
             }
         }
@@ -97,17 +100,20 @@ class Tower {
         this.upgradeCount++;
         this.level++;
         
-        this.damage *= 1.4;
-        this.range *= 1.15;
-        this.attackSpeed *= 1.25;
+        // Melhorias balanceadas
+        this.damage *= 1.3;
+        this.range *= 1.1;
+        this.attackSpeed *= 1.2;
         this.attackCooldown = 1000 / this.attackSpeed;
         
-        this.upgradeCost = Math.floor(this.upgradeCost * 1.5);
+        // Custo de upgrade aumentado significativamente
+        this.upgradeCost = Math.floor(this.upgradeCost * 2);
         
         return true;
     }
 
     draw(ctx) {
+        // Desenha alcance se selecionado
         if (this.drawRange) {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
@@ -117,6 +123,7 @@ class Tower {
             ctx.stroke();
         }
         
+        // Torre principal
         ctx.fillStyle = this.color;
         ctx.fillRect(
             this.x - this.size / 2,
@@ -127,17 +134,21 @@ class Tower {
         
         this.drawDetails(ctx);
         
+        // Nível da torre
         ctx.fillStyle = 'white';
         ctx.font = '10px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(this.level, this.x, this.y + 3);
         
+        // Desenha projéteis
         for (const projectile of this.projectiles) {
             projectile.draw(ctx);
         }
     }
 
-    drawDetails(ctx) {}
+    drawDetails(ctx) {
+        // Implementado pelas subclasses
+    }
 
     showRange(duration = 2000) {
         this.drawRange = true;
@@ -212,7 +223,7 @@ class Projectile {
             this.hit = true;
             this.remove = true;
             
-            this.target.takeDamage(this.damage);
+            this.target.takeDamage(this.damage, this.source);
             
             if (this.specialEffect && typeof this.specialEffect === 'function') {
                 this.specialEffect(this.target);
@@ -228,6 +239,8 @@ class Projectile {
     }
 }
 
+// Torres específicas organizadas por preço crescente
+
 class ArcherTower extends Tower {
     constructor(gridX, gridY, map) {
         super(gridX, gridY, map);
@@ -239,7 +252,7 @@ class ArcherTower extends Tower {
         this.attackSpeed = 1.5;
         this.attackCooldown = 1000 / this.attackSpeed;
         this.cost = 80;
-        this.upgradeCost = 40;
+        this.upgradeCost = 80;
     }
 
     getSourceType() {
@@ -257,6 +270,128 @@ class ArcherTower extends Tower {
     }
 }
 
+class IceTower extends Tower {
+    constructor(gridX, gridY, map) {
+        super(gridX, gridY, map);
+        this.type = 'Gelo';
+        this.description = 'Congela inimigos, reduz velocidade drasticamente';
+        this.color = '#5bc0de';
+        this.damage = 8;
+        this.range = 110;
+        this.attackSpeed = 1.2;
+        this.attackCooldown = 1000 / this.attackSpeed;
+        this.cost = 120;
+        this.upgradeCost = 120;
+        this.slowEffect = 0.7;
+        this.slowDuration = 3000;
+        
+        this.specialEffect = (target) => {
+            target.applySlowEffect(this.slowEffect, this.slowDuration);
+        };
+    }
+
+    upgrade() {
+        const upgraded = super.upgrade();
+        if (upgraded) {
+            this.slowEffect = Math.max(0.3, this.slowEffect - 0.1);
+            this.slowDuration += 500;
+        }
+        return upgraded;
+    }
+
+    getSourceType() {
+        return 'gelo';
+    }
+
+    drawDetails(ctx) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size / 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+class PoisonTower extends Tower {
+    constructor(gridX, gridY, map) {
+        super(gridX, gridY, map);
+        this.type = 'Veneno';
+        this.description = 'Veneno letal que causa dano por segundo';
+        this.color = '#9c27b0';
+        this.damage = 5;
+        this.range = 115;
+        this.attackSpeed = 1.1;
+        this.attackCooldown = 1000 / this.attackSpeed;
+        this.cost = 150;
+        this.upgradeCost = 150;
+        this.poisonDamage = 20;
+        this.poisonDuration = 5000;
+        
+        this.specialEffect = (target) => {
+            target.applyPoisonEffect(this.poisonDamage, this.poisonDuration);
+        };
+    }
+
+    upgrade() {
+        const upgraded = super.upgrade();
+        if (upgraded) {
+            this.poisonDamage *= 1.5;
+            this.poisonDuration += 1000;
+        }
+        return upgraded;
+    }
+
+    getSourceType() {
+        return 'veneno';
+    }
+
+    drawDetails(ctx) {
+        ctx.fillStyle = '#6a0080';
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillRect(-this.size / 4, -this.size / 4, this.size / 2, this.size / 2);
+        ctx.restore();
+    }
+}
+
+class GladiatorTower extends Tower {
+    constructor(gridX, gridY, map) {
+        super(gridX, gridY, map);
+        this.type = 'Gladiador';
+        this.description = 'Combatente corpo a corpo, alcance limitado';
+        this.color = '#8b4513';
+        this.damage = 25; // Reduzido de 35 para 25
+        this.range = 60; // Alcance curto
+        this.attackSpeed = 2.0;
+        this.attackCooldown = 1000 / this.attackSpeed;
+        this.cost = 200;
+        this.upgradeCost = 200;
+    }
+
+    getSourceType() {
+        return 'gladiador';
+    }
+
+    drawDetails(ctx) {
+        // Corpo
+        ctx.fillStyle = '#5d2f0a';
+        ctx.fillRect(
+            this.x - 2,
+            this.y - this.size / 2 + 5,
+            4,
+            this.size - 10
+        );
+        
+        // Espada
+        ctx.fillRect(
+            this.x - this.size / 3,
+            this.y - 3,
+            this.size / 1.5,
+            6
+        );
+    }
+}
+
 class CannonTower extends Tower {
     constructor(gridX, gridY, map) {
         super(gridX, gridY, map);
@@ -269,7 +404,7 @@ class CannonTower extends Tower {
         this.attackSpeed = 0.7;
         this.attackCooldown = 1000 / this.attackSpeed;
         this.cost = 250;
-        this.upgradeCost = 125;
+        this.upgradeCost = 250;
         
         this.specialEffect = (target) => {
             const enemies = window.gameInstance.enemies;
@@ -331,7 +466,7 @@ class SniperTower extends Tower {
         this.attackSpeed = 0.4;
         this.attackCooldown = 1000 / this.attackSpeed;
         this.cost = 300;
-        this.upgradeCost = 150;
+        this.upgradeCost = 300;
     }
 
     getSourceType() {
@@ -366,124 +501,32 @@ class SniperTower extends Tower {
     }
 }
 
-class IceTower extends Tower {
-    constructor(gridX, gridY, map) {
-        super(gridX, gridY, map);
-        this.type = 'Gelo';
-        this.description = 'Congela inimigos, reduz velocidade drasticamente';
-        this.color = '#5bc0de';
-        this.damage = 8;
-        this.range = 110;
-        this.attackSpeed = 1.2;
-        this.attackCooldown = 1000 / this.attackSpeed;
-        this.cost = 120;
-        this.upgradeCost = 60;
-        this.slowEffect = 0.7;
-        this.slowDuration = 3000;
-        
-        this.specialEffect = (target) => {
-            target.applySlowEffect(this.slowEffect, this.slowDuration);
-        };
-    }
-
-    upgrade() {
-        const upgraded = super.upgrade();
-        if (upgraded) {
-            this.slowEffect = Math.max(0.4, this.slowEffect - 0.1);
-            this.slowDuration += 500;
-        }
-        return upgraded;
-    }
-
-    getSourceType() {
-        return 'gelo';
-    }
-
-    drawDetails(ctx) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size / 3, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-class PoisonTower extends Tower {
-    constructor(gridX, gridY, map) {
-        super(gridX, gridY, map);
-        this.type = 'Veneno';
-        this.description = 'Veneno letal que causa dano por segundo';
-        this.color = '#9c27b0';
-        this.damage = 5;
-        this.range = 115;
-        this.attackSpeed = 1.1;
-        this.attackCooldown = 1000 / this.attackSpeed;
-        this.cost = 150;
-        this.upgradeCost = 75;
-        this.poisonDamage = 20;
-        this.poisonDuration = 5000;
-        
-        this.specialEffect = (target) => {
-            target.applyPoisonEffect(this.poisonDamage, this.poisonDuration);
-        };
-    }
-
-    upgrade() {
-        const upgraded = super.upgrade();
-        if (upgraded) {
-            this.poisonDamage *= 1.5;
-            this.poisonDuration += 1000;
-        }
-        return upgraded;
-    }
-
-    getSourceType() {
-        return 'veneno';
-    }
-
-    drawDetails(ctx) {
-        ctx.fillStyle = '#6a0080';
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(Math.PI / 4);
-        ctx.fillRect(-this.size / 4, -this.size / 4, this.size / 2, this.size / 2);
-        ctx.restore();
-    }
-}
-
 class BallistaTower extends Tower {
     constructor(gridX, gridY, map) {
         super(gridX, gridY, map);
         this.type = 'Balista';
         this.description = 'Projéteis perfurantes devastadores';
         this.color = '#ff9800';
-        this.damage = 250;
-        this.range = 180;
-        this.attackSpeed = 0.6;
+        this.damage = 80;
+        this.range = 200;
+        this.attackSpeed = 0.5;
         this.attackCooldown = 1000 / this.attackSpeed;
         this.cost = 600;
-        this.upgradeCost = 300;
-        this.pierceCount = 4;
+        this.upgradeCost = 600;
+        this.pierceCount = 3;
         
         this.specialEffect = (target) => {
+            // Efeito perfurante - continua após atingir um inimigo
             const enemies = window.gameInstance.enemies;
-            const targetX = target.x;
-            const targetY = target.y;
             let pierced = 0;
             
-            const sortedEnemies = enemies
-                .filter(enemy => enemy !== target && enemy.health > 0)
-                .sort((a, b) => {
-                    const distA = Math.hypot(a.x - targetX, a.y - targetY);
-                    const distB = Math.hypot(b.x - targetX, b.y - targetY);
-                    return distA - distB;
-                });
-            
-            for (const enemy of sortedEnemies) {
-                if (pierced >= this.pierceCount) break;
-                const distance = Math.hypot(enemy.x - targetX, enemy.y - targetY);
-                if (distance <= 80) {
-                    enemy.takeDamage(this.damage * 0.7, 'balista');
-                    pierced++;
+            for (const enemy of enemies) {
+                if (enemy !== target && enemy.health > 0 && pierced < this.pierceCount) {
+                    const distance = Math.hypot(enemy.x - target.x, enemy.y - target.y);
+                    if (distance <= 40) {
+                        enemy.takeDamage(this.damage * 0.7, 'balista');
+                        pierced++;
+                    }
                 }
             }
         };
@@ -497,10 +540,25 @@ class BallistaTower extends Tower {
         return upgraded;
     }
 
+    getSourceType() {
+        return 'balista';
+    }
+
     drawDetails(ctx) {
         ctx.fillStyle = '#b26a00';
-        ctx.fillRect(this.x - this.size / 2 + 5, this.y - 2, this.size - 10, 4);
-        ctx.fillRect(this.x - this.size / 2 + 5, this.y + 3, this.size - 10, 4);
+        // Hastes horizontais
+        ctx.fillRect(
+            this.x - this.size / 2 + 5,
+            this.y - 2,
+            this.size - 10,
+            4
+        );
+        ctx.fillRect(
+            this.x - this.size / 2 + 5,
+            this.y + 6,
+            this.size - 10,
+            4
+        );
     }
 
     attack() {
@@ -512,7 +570,7 @@ class BallistaTower extends Tower {
                 this.damage,
                 this.color,
                 this.specialEffect,
-                'balista'
+                this.getSourceType()
             );
             projectile.speed = 600;
             projectile.size = 6;
@@ -521,50 +579,12 @@ class BallistaTower extends Tower {
     }
 }
 
-class GladiatorTower extends Tower {
-    constructor(gridX, gridY, map) {
-        super(gridX, gridY, map);
-        this.type = 'Gladiador';
-        this.description = 'Ataque corpo a corpo rápido e feroz';
-        this.color = '#8b4513';
-        this.damage = 35;
-        this.range = 60;
-        this.attackSpeed = 3.0;
-        this.attackCooldown = 1000 / this.attackSpeed;
-        this.cost = 200;
-        this.upgradeCost = 100;
-    }
-
-    drawDetails(ctx) {
-        ctx.fillStyle = '#5d2f0a';
-        ctx.fillRect(this.x - 3, this.y - this.size / 2 + 8, 6, this.size - 16);
-        ctx.fillRect(this.x - this.size / 3, this.y - 3, this.size * 2/3, 6);
-    }
-
-    attack() {
-        if (this.target) {
-            const projectile = new Projectile(
-                this.x,
-                this.y,
-                this.target,
-                this.damage,
-                this.color,
-                this.specialEffect,
-                'gladiador'
-            );
-            projectile.speed = 500;
-            projectile.size = 4;
-            this.projectiles.push(projectile);
-        }
-    }
-}
-
 window.Tower = Tower;
 window.Projectile = Projectile;
 window.ArcherTower = ArcherTower;
-window.CannonTower = CannonTower;
-window.SniperTower = SniperTower;
 window.IceTower = IceTower;
 window.PoisonTower = PoisonTower;
-window.BallistaTower = BallistaTower;
 window.GladiatorTower = GladiatorTower;
+window.CannonTower = CannonTower;
+window.SniperTower = SniperTower;
+window.BallistaTower = BallistaTower;
